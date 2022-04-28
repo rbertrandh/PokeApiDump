@@ -3,6 +3,7 @@ const request = require("request");
 const GLOBAL_TIME_START = Date.now();
 const LANGUAGE = "es";
 const POKEMON_LIMIT = 386;
+
 const OUTPUT_FILE_NAME = "pokemon.json";
 
 const arrayOfPokemon = [];
@@ -39,9 +40,9 @@ function getDescriptionData(idPokemon) {
   });
 }
 
-function getAbilityData(urlAbility) {
+function getGenericJsonData(url) {
   return new Promise(function (resolve, reject) {
-    request({ url: urlAbility }, (error, res) => {
+    request({ url: url }, (error, res) => {
       if (error) {
         reject(error);
       }
@@ -60,8 +61,18 @@ async function fetchPokemon(idPokemon) {
   currentPokemon.height = pokemonJson.height;
   currentPokemon.weight = pokemonJson.weight;
   currentPokemon.sprites = pokemonJson.sprites;
+  currentPokemon.types = [];
   currentPokemon.description = [];
   currentPokemon.abilities = [];
+
+  for (let element of pokemonJson.types){
+    let pokemonTypeJson  = await getGenericJsonData(element.type.url);
+    for(let element of pokemonTypeJson.names){
+      if (element.language.name == LANGUAGE) {
+        currentPokemon.types.push(element.name);
+      }
+    }
+  }
 
   let pokemonDescriptionJson = await getDescriptionData(idPokemon);
   currentPokemon.captureRate = pokemonDescriptionJson.capture_rate;
@@ -76,7 +87,7 @@ async function fetchPokemon(idPokemon) {
 
   for (let ability of pokemonJson.abilities) {
     let abilityProcessed = {};
-    let abilityDataJson = await getAbilityData(ability.ability.url);
+    let abilityDataJson = await getGenericJsonData(ability.ability.url);
 
     for (let abilityDataNameItem of abilityDataJson.names) {
       if (abilityDataNameItem.language.name == LANGUAGE) {
@@ -86,7 +97,7 @@ async function fetchPokemon(idPokemon) {
     }
     for (let abilityDataTextItem of abilityDataJson.flavor_text_entries) {
       if (abilityDataTextItem.language.name == LANGUAGE) {
-        abilityProcessed.description = abilityDataTextItem.flavor_text;
+        abilityProcessed.description = abilityDataTextItem.flavor_text.split("\n").join(" ");
         break;
       }
     }
@@ -135,9 +146,9 @@ async function populateDatabase() {
     await fetchPokemon(pokemonId);
     pokemonId++;
   }
-  // checkArray()
   console.log(`Fetched ${arrayOfPokemon.length} pokemons successfully!`);
   writeToFile(OUTPUT_FILE_NAME);
 }
 
 populateDatabase();
+
