@@ -1,2 +1,2 @@
-# PokeApiDump
+# PokeApiDumper
 Simple PokeApi Json Dumper
