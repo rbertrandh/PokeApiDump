@@ -2,7 +2,7 @@ const request = require("request");
 
 const GLOBAL_TIME_START = Date.now();
 const LANGUAGE = "es";
-const POKEMON_LIMIT = 386;
+const POKEMON_LIMIT = 1;
 
 const OUTPUT_FILE_NAME = "pokemon.json";
 
@@ -54,36 +54,25 @@ function getGenericJsonData(url) {
 async function fetchPokemon(idPokemon) {
   let currentPokemonTime = Date.now();
   let currentPokemon = {};
-
+  
   let pokemonJson = await getPokemonData(idPokemon);
+  let pokemonDescriptionJson = await getDescriptionData(idPokemon);
+
   currentPokemon.id = pokemonJson.id;
   currentPokemon.name = pokemonJson.name;
   currentPokemon.height = pokemonJson.height;
   currentPokemon.weight = pokemonJson.weight;
-  currentPokemon.sprites = pokemonJson.sprites;
-  currentPokemon.types = [];
-  currentPokemon.description = [];
+  currentPokemon.types = await getPokemonTypes(pokemonJson);
+  currentPokemon.baseStats = getPokemonStats(pokemonJson);
+  currentPokemon.captureRate = pokemonDescriptionJson.capture_rate;
+  currentPokemon.description = getPokemonDescription(pokemonDescriptionJson);
+  currentPokemon.sprites = getPokemonSprites(pokemonJson);
   currentPokemon.abilities = [];
 
-  for (let element of pokemonJson.types){
-    let pokemonTypeJson  = await getGenericJsonData(element.type.url);
-    for(let element of pokemonTypeJson.names){
-      if (element.language.name == LANGUAGE) {
-        currentPokemon.types.push(element.name);
-      }
-    }
-  }
 
-  let pokemonDescriptionJson = await getDescriptionData(idPokemon);
-  currentPokemon.captureRate = pokemonDescriptionJson.capture_rate;
+  
 
-  for (let element of pokemonDescriptionJson.flavor_text_entries) {
-    if (element.language.name == LANGUAGE) {
-      currentPokemon.description.push(
-        element.flavor_text.split("\n").join(" ")
-      );
-    }
-  }
+  
 
   for (let ability of pokemonJson.abilities) {
     let abilityProcessed = {};
@@ -97,7 +86,9 @@ async function fetchPokemon(idPokemon) {
     }
     for (let abilityDataTextItem of abilityDataJson.flavor_text_entries) {
       if (abilityDataTextItem.language.name == LANGUAGE) {
-        abilityProcessed.description = abilityDataTextItem.flavor_text.split("\n").join(" ");
+        abilityProcessed.description = abilityDataTextItem.flavor_text
+          .split("\n")
+          .join(" ");
         break;
       }
     }
@@ -105,7 +96,7 @@ async function fetchPokemon(idPokemon) {
   }
 
   arrayOfPokemon.push(currentPokemon);
-  
+
   console.log(
     `[${((idPokemon / POKEMON_LIMIT) * 100).toFixed(2)}% in ${(
       (Date.now() - GLOBAL_TIME_START) /
@@ -114,6 +105,55 @@ async function fetchPokemon(idPokemon) {
       currentPokemon.name
     } fetched in ${((Date.now() - currentPokemonTime) / 1000).toFixed(2)}s`
   );
+}
+
+function getPokemonDescription(pokemonDescriptionJson, currentPokemon) {
+  let descriptions = []
+  for (let element of pokemonDescriptionJson.flavor_text_entries) {
+    if (element.language.name == LANGUAGE) {
+      descriptions.push(
+        element.flavor_text.split("\n").join(" ")
+      );
+    }
+  }
+
+}
+
+async function getPokemonTypes(pokemonJson) {
+  let types = [];
+  for (let element of pokemonJson.types) {
+    let pokemonTypeJson = await getGenericJsonData(element.type.url);
+    for (let element of pokemonTypeJson.names) {
+      if (element.language.name == LANGUAGE) {
+        types.push(element.name);
+      }
+    }
+  }
+  return types;
+}
+
+async function getPokemonCaptureRate(pokemonJson) {
+}
+
+function getPokemonSprites(pokemonJson) {
+  return {
+    "8bit_front_default": pokemonJson.sprites.front_default,
+    svg_front_default: pokemonJson.sprites.other.dream_world.front_default,
+    "3d_front_default": pokemonJson.sprites.other.home.front_default,
+    official_default: pokemonJson.sprites.other["official-artwork"].front_default,
+  };
+}
+
+function getPokemonStats(pokemonJson) {
+  let pokemonStats = {};
+  for (let elementStat of pokemonJson.stats) {
+    if (elementStat.stat.name == "hp") pokemonStats.hp = elementStat.base_stat;
+    if (elementStat.stat.name == "attack") pokemonStats.attack = elementStat.base_stat;
+    if (elementStat.stat.name == "special-attack") pokemonStats.specialAttack = elementStat.base_stat;
+    if (elementStat.stat.name == "special-defense") pokemonStats.specialDefense = elementStat.base_stat;
+    if (elementStat.stat.name == "speed") pokemonStats.speed = elementStat.base_stat;
+  }
+  return pokemonStats;
 }
 
 function timeout(ms) {
@@ -139,7 +179,7 @@ async function populateDatabase() {
   console.log("> Using language: ", LANGUAGE);
   console.log("> Using POKEMON_LIMIT: ", POKEMON_LIMIT);
   console.log("Press ^c to cancel. Will start in 5 seconds");
-  await timeout(5000);
+  await timeout(1000);
 
   let pokemonId = 1;
   while (pokemonId <= POKEMON_LIMIT) {
@@ -151,4 +191,3 @@ async function populateDatabase() {
 }
 
 populateDatabase();
-
