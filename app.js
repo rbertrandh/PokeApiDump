@@ -3,8 +3,8 @@ const request = require("request");
 const GLOBAL_TIME_START = Date.now();
 const LANGUAGE = "es";
 
-//First Generation Only
-const POKEMON_LIMIT = 1; 
+//151 = First Generation Only
+const POKEMON_LIMIT = 151; 
 
 const OUTPUT_FILE_NAME = "pokemon.json";
 
