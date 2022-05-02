@@ -2,7 +2,9 @@ const request = require("request");
 
 const GLOBAL_TIME_START = Date.now();
 const LANGUAGE = "es";
-const POKEMON_LIMIT = 152;
+
+//First Generation Only
+const POKEMON_LIMIT = 1; 
 
 const OUTPUT_FILE_NAME = "pokemon.json";
 
@@ -62,13 +64,14 @@ function showProgressOnConsole(idPokemon, currentPokemon, currentPokemonTime) {
   );
 }
 
-function getPokemonDescription(pokemonDescriptionJson, currentPokemon) {
+function getPokemonDescription(pokemonDescriptionJson) {
   let descriptions = [];
   for (let element of pokemonDescriptionJson.flavor_text_entries) {
     if (element.language.name == LANGUAGE) {
       descriptions.push(element.flavor_text.split("\n").join(" "));
     }
   }
+  return [...new Set(descriptions)];
 }
 
 async function getPokemonTypes(pokemonJson) {
@@ -166,8 +169,8 @@ async function fetchPokemon(idPokemon) {
   currentPokemon.height = pokemonJson.height;
   currentPokemon.weight = pokemonJson.weight;
   currentPokemon.types = await getPokemonTypes(pokemonJson);
-  currentPokemon.baseStats = getPokemonStats(pokemonJson);
   currentPokemon.captureRate = pokemonDescriptionJson.capture_rate;
+  currentPokemon.baseStats = getPokemonStats(pokemonJson);
   currentPokemon.description = getPokemonDescription(pokemonDescriptionJson);
   currentPokemon.sprites = getPokemonSprites(pokemonJson);
   currentPokemon.abilities = await getPokemonAbilities(pokemonJson);
@@ -227,7 +230,7 @@ async function populateDatabase() {
   console.log("> Using language: ", LANGUAGE);
   console.log("> Using POKEMON_LIMIT: ", POKEMON_LIMIT);
   console.log("Press ^c to cancel. Will start in 5 seconds");
-  await timeout(1000);
+  await timeout(5000);
 
   let pokemonId = 1;
   while (pokemonId <= POKEMON_LIMIT) {
