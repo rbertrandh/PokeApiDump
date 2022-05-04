@@ -4,42 +4,29 @@ const GLOBAL_TIME_START = Date.now();
 const LANGUAGE = "es";
 
 //151 = First Generation Only
-const POKEMON_LIMIT = 151; 
+const POKEMON_LIMIT = 3;
 
 const OUTPUT_FILE_NAME = "pokemon.json";
+const BASE_API_URL = "https://pokeapi.co/api/v2";
 
 const arrayOfPokemon = [];
 
-function getPokemonData(idPokemon) {
-  return new Promise((resolve, reject) => {
-    request(
-      { url: `https://pokeapi.co/api/v2/pokemon/${idPokemon}/` },
-      (error, res) => {
-        if (error) {
-          reject(error);
-        }
-        resolve(JSON.parse(res.body));
-      }
-    );
-  });
+async function getPokemonData(idPokemon) {
+  return new Promise((resolve, _reject) => {
+    const url = `${BASE_API_URL}/pokemon/${idPokemon}/`; 
+    getGenericJsonData(url).then((response)=>{
+      resolve(response);
+    });
+  })
 }
 
-function getDescriptionData(idPokemon) {
-  return new Promise(function (resolve, reject) {
-    try {
-      request(
-        { url: `https://pokeapi.co/api/v2/pokemon-species/${idPokemon}/` },
-        (error, res) => {
-          if (error) {
-            reject(error);
-          }
-          resolve(JSON.parse(res.body));
-        }
-      );
-    } catch (error) {
-      console.error(idPokemon, error);
-    }
-  });
+async function getDescriptionData(idPokemon) {
+  return new Promise((resolve, _reject) => {
+    const url = `${BASE_API_URL}/pokemon-species/${idPokemon}/`;
+    getGenericJsonData(url).then((response)=>{
+      resolve(response);
+    });
+  })
 }
 
 function getGenericJsonData(url) {
@@ -76,11 +63,11 @@ function getPokemonDescription(pokemonDescriptionJson) {
 
 async function getPokemonTypes(pokemonJson) {
   let types = [];
-  for (let element of pokemonJson.types) {
-    let pokemonTypeJson = await getGenericJsonData(element.type.url);
-    for (let element of pokemonTypeJson.names) {
-      if (element.language.name == LANGUAGE) {
-        types.push(element.name);
+  for (let elementType of pokemonJson.types) {
+    let pokemonTypeJson = await getGenericJsonData(elementType.type.url);
+    for (let elementTypeName of pokemonTypeJson.names) {
+      if (elementTypeName.language.name == LANGUAGE) {
+        types.push(elementTypeName.name);
       }
     }
   }
@@ -175,16 +162,19 @@ async function fetchPokemon(idPokemon) {
   currentPokemon.sprites = getPokemonSprites(pokemonJson);
   currentPokemon.abilities = await getPokemonAbilities(pokemonJson);
   currentPokemon.moves = await getPokemonMoves(pokemonJson);
-  
+
   arrayOfPokemon.push(currentPokemon);
   showProgressOnConsole(idPokemon, currentPokemon, currentPokemonTime);
 }
 
 async function getPokemonMoves(pokemonJson) {
   let moves = [];
-  for (pokeMove of pokemonJson.moves) {
-    for (version of pokeMove.version_group_details)
-      if (["red-blue"].includes(version.version_group.name) && version.move_learn_method.name == "level-up") {
+  for (let pokeMove of pokemonJson.moves) {
+    for (let version of pokeMove.version_group_details)
+      if (
+        ["red-blue"].includes(version.version_group.name) &&
+        version.move_learn_method.name == "level-up"
+      ) {
         let move = await getPokemonMoveData(pokeMove.move.url);
         moves.push(move);
       }
@@ -192,36 +182,34 @@ async function getPokemonMoves(pokemonJson) {
   return moves;
 }
 
-async function getPokemonMoveData(moveUrl){
-  let move = {}
+async function getPokemonMoveData(moveUrl) {
+  let move = {};
   let moveDataJson = await getGenericJsonData(moveUrl);
-  
+
   move.id = moveDataJson.id;
 
-  for(let name of moveDataJson.names){
-    if (name.language.name == LANGUAGE){
+  for (let name of moveDataJson.names) {
+    if (name.language.name == LANGUAGE) {
       move.name = name.name;
       break;
     }
   }
 
-  for(let flavor_text of moveDataJson.flavor_text_entries){
-    if(flavor_text.language.name == LANGUAGE){
-      move.description = flavor_text.flavor_text.split('\n').join(' ');
+  for (let flavor_text of moveDataJson.flavor_text_entries) {
+    if (flavor_text.language.name == LANGUAGE) {
+      move.description = flavor_text.flavor_text.split("\n").join(" ");
       break;
     }
   }
 
   let moveTypeDataJson = await getGenericJsonData(moveDataJson.type.url);
-  for(let name of moveTypeDataJson.names){
-    if(name.language.name == LANGUAGE){
+  for (let name of moveTypeDataJson.names) {
+    if (name.language.name == LANGUAGE) {
       move.type = name.name;
       break;
     }
   }
 
-  // move.power = moveDataJson.power;
-  // move.accuracy = moveDataJson.accuracy;
   return move;
 }
 
@@ -231,6 +219,7 @@ async function populateDatabase() {
   console.log("> Using POKEMON_LIMIT: ", POKEMON_LIMIT);
   console.log("Press ^c to cancel. Will start in 5 seconds");
   await timeout(5000);
+  console.log("Starting...");
 
   let pokemonId = 1;
   while (pokemonId <= POKEMON_LIMIT) {
